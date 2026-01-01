@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use super::{
-    helpers::{bit_iterator, load_lines},
+    helpers::{bit_iterator, load_lines, GpioLines},
     NodeId,
 };
 use crate::gpio_output_array;
 use anyhow::Context;
-use gpiod::{Chip, Lines, Output};
+use gpiocdev::line::Value;
 use std::path::PathBuf;
 use std::{str::FromStr, time::Duration};
 use tokio::time::sleep;
@@ -35,7 +35,7 @@ const PORT4_EN: &str = "node4-en";
 // This structure is a thin layer that abstracts away the interaction details
 // with Linux's power subsystem.
 pub struct PowerController {
-    enable: [Lines<Output>; 4],
+    enable: [GpioLines; 4],
     sysfs_power: PathBuf,
     sysfs_reset: PathBuf,
 }
@@ -48,8 +48,7 @@ impl PowerController {
             "/dev/gpiochip2"
         };
 
-        let chip1 = Chip::new(chip1).context(chip1)?;
-        let lines = load_lines(&chip1);
+        let lines = load_lines(chip1);
         let port1 = *lines
             .get(PORT1_EN)
             .ok_or(anyhow::anyhow!("cannot find PORT1_EN"))?;
@@ -96,7 +95,8 @@ impl PowerController {
             trace!("setting power of node {}. state:{}", idx + 1, state);
             set_mode(idx + 1, state).await?;
             sleep(Duration::from_millis(100)).await;
-            self.enable[idx].set_values(state)?;
+            let value = if state != 0 { Value::Active } else { Value::Inactive };
+            self.enable[idx].set_value(value)?;
         }
 
         Ok(())

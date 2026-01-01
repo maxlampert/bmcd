@@ -13,6 +13,7 @@
 // limitations under the License.
 use super::helpers::bit_iterator;
 use super::helpers::load_lines;
+use super::helpers::GpioLines;
 use crate::gpio_output_array;
 use crate::gpio_output_lines;
 
@@ -21,7 +22,7 @@ use super::NodeId;
 use super::UsbMode;
 use super::UsbRoute;
 use anyhow::Context;
-use gpiod::{Chip, Lines, Output};
+use gpiocdev::line::Value;
 use std::fmt::Display;
 use thiserror::Error;
 use tracing::debug;
@@ -97,7 +98,7 @@ const NODE4_RPIBOOT: &str = "node4-rpiboot";
 /// or USB-A. This way we can provide support to more devices devices.
 pub struct PinController {
     usb_switch: Box<dyn UsbConfiguration + Sync + Send>,
-    rpi_boot: [Lines<Output>; 4],
+    rpi_boot: [GpioLines; 4],
 }
 
 impl PinController {
@@ -109,9 +110,8 @@ impl PinController {
             "/dev/gpiochip2"
         };
 
-        let chip0 = Chip::new("/dev/gpiochip0").context("gpiod chip0")?;
-        let chip1 = Chip::new(chip1).context("gpiod chip1")?;
-        let chip1_lines = load_lines(&chip1);
+        let chip0 = "/dev/gpiochip0";
+        let chip1_lines = load_lines(chip1);
 
         let rpi1 = *chip1_lines
             .get(NODE1_RPIBOOT)
@@ -129,9 +129,9 @@ impl PinController {
         let rpi_boot = gpio_output_array!(chip1, rpi1, rpi2, rpi3, rpi4);
 
         let usb_switch = if has_usb_switch {
-            Box::new(UsbMuxSwitch::new(&chip0, &chip1)?) as Box<dyn UsbConfiguration + Send + Sync>
+            Box::new(UsbMuxSwitch::new(chip0, chip1)?) as Box<dyn UsbConfiguration + Send + Sync>
         } else {
-            Box::new(UsbHub::new(&chip0)?)
+            Box::new(UsbHub::new(chip0)?)
         };
 
         Ok(Self {
@@ -176,7 +176,8 @@ impl PinController {
                 idx + 1,
                 if state != 0 { "enable" } else { "disable" }
             );
-            self.rpi_boot[idx].set_values(state)?;
+            let value = if state != 0 { Value::Active } else { Value::Inactive };
+            self.rpi_boot[idx].set_value(value)?;
         }
         Ok(())
     }
@@ -214,13 +215,13 @@ impl Display for UsbArchitecture {
 }
 
 struct UsbMuxSwitch {
-    usb_mux: Lines<Output>,
-    usb_vbus: Lines<Output>,
-    output_switch: Lines<Output>,
+    usb_mux: GpioLines,
+    usb_vbus: GpioLines,
+    output_switch: GpioLines,
 }
 
 impl UsbMuxSwitch {
-    pub fn new(chip0: &Chip, chip1: &Chip) -> Result<Self, PowerControllerError> {
+    pub fn new(chip0: &str, chip1: &str) -> Result<Self, PowerControllerError> {
         let usb_mux = gpio_output_lines!(chip0, [USB_SEL1, USB_OE1, USB_SEL2, USB_OE2]);
         let output_switch = gpio_output_lines!(chip0, [USB_SWITCH]);
         let chip1_lines = load_lines(chip1);
@@ -255,11 +256,11 @@ impl UsbConfiguration for UsbMuxSwitch {
     fn set_usb_route(&self, route: UsbRoute) -> Result<(), PowerControllerError> {
         match route {
             UsbRoute::AlternativePort => {
-                self.output_switch.set_values(0_u8)?;
+                self.output_switch.set_values_from_bits(0_u8)?;
                 std::fs::write(USB_PORT_POWER, b"enabled")
             }
             UsbRoute::Bmc => {
-                self.output_switch.set_values(1_u8)?;
+                self.output_switch.set_values_from_bits(1_u8)?;
                 std::fs::write(USB_PORT_POWER, b"disabled")
             }
         }?;
@@ -274,12 +275,12 @@ impl UsbConfiguration for UsbMuxSwitch {
             NodeId::Node3 => 0b0011,
             NodeId::Node4 => 0b0111,
         };
-        self.usb_mux.set_values(values)?;
+        self.usb_mux.set_values_from_bits(values)?;
         let vbus = match mode {
             UsbMode::Host => node.to_inverse_bitfield(),
             UsbMode::Device | UsbMode::Flash => 0b1111,
         };
-        self.usb_vbus.set_values(vbus)?;
+        self.usb_vbus.set_values_from_bits(vbus)?;
         Ok(())
     }
 
@@ -289,12 +290,12 @@ impl UsbConfiguration for UsbMuxSwitch {
 }
 
 struct UsbHub {
-    output_switch: Lines<Output>,
-    node1_source: Lines<Output>,
+    output_switch: GpioLines,
+    node1_source: GpioLines,
 }
 
 impl UsbHub {
-    pub fn new(chip: &Chip) -> Result<Self, PowerControllerError> {
+    pub fn new(chip: &str) -> Result<Self, PowerControllerError> {
         let node1_source =
             gpio_output_lines!(chip, [NODE1_OUTPUT_SWITCH_V2_5, NODE1_SOURCE_SWITCH_V2_5]);
 
@@ -313,8 +314,8 @@ impl UsbConfiguration for UsbHub {
 
     fn set_usb_route(&self, route: UsbRoute) -> Result<(), PowerControllerError> {
         match route {
-            UsbRoute::AlternativePort => self.output_switch.set_values(0_u8),
-            UsbRoute::Bmc => self.output_switch.set_values(1_u8),
+            UsbRoute::AlternativePort => self.output_switch.set_values_from_bits(0_u8),
+            UsbRoute::Bmc => self.output_switch.set_values_from_bits(1_u8),
         }?;
 
         Ok(())
@@ -331,7 +332,7 @@ impl UsbConfiguration for UsbHub {
 
     fn set_node1_usb_route(&self, alternative_port: bool) -> Result<(), PowerControllerError> {
         let value = if alternative_port { 0b11 } else { 0u8 };
-        Ok(self.node1_source.set_values(value)?)
+        Ok(self.node1_source.set_values_from_bits(value)?)
     }
 }
 
@@ -346,6 +347,8 @@ pub enum PowerControllerError {
     HostModeNotSupported,
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Gpio(#[from] gpiocdev::Error),
     #[error(transparent)]
     Anyhow(#[from] anyhow::Error),
 }
