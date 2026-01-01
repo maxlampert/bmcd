@@ -32,7 +32,7 @@ const BINARY_VERSION: u32 = 1;
 const BINARY_MAGIC: &[u8; 7] = b"TMAPPDB";
 const LEB_SIZE: u32 = 252 * 1024;
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, wincode::SchemaWrite, wincode::SchemaRead)]
 struct PersistencyHeader {
     pub version: u32,
     pub magic: [u8; 7],
@@ -50,7 +50,7 @@ impl<'a> PersistencyHeader {
         };
 
         header.data_offset = u16::try_from(
-            bincode::serialized_size(&header)
+            wincode::serialized_size(&header)
                 .map_err(|e| PersistencyError::serialization("header size", e))?,
         )
         .expect("current binary format does not support the given offset");
@@ -58,7 +58,7 @@ impl<'a> PersistencyHeader {
     }
 
     fn serialized_size() -> Result<u64, PersistencyError<'a>> {
-        bincode::serialized_size(&PersistencyHeader::new()?)
+        wincode::serialized_size(&PersistencyHeader::new()?)
             .map_err(|e| PersistencyError::serialization("header size", e))
     }
 }
@@ -119,7 +119,9 @@ impl<'a> PersistencyStore {
     fn try_load_data(
         mut source: impl Read + Seek,
     ) -> Result<impl IntoIterator<Item = (u64, Vec<u8>)>, PersistencyError<'a>> {
-        let header: PersistencyHeader = bincode::deserialize_from(&mut source)
+        let mut header_bytes = vec![0u8; std::mem::size_of::<PersistencyHeader>() + 8];
+        source.read_exact(&mut header_bytes[..17])?;
+        let header: PersistencyHeader = wincode::deserialize(&header_bytes)
             .map_err(|e| PersistencyError::serialization("header deserialization", e))?;
 
         if &header.magic != BINARY_MAGIC {
@@ -135,7 +137,9 @@ impl<'a> PersistencyStore {
         }
 
         source.seek(io::SeekFrom::Start(header.data_offset.into()))?;
-        let data: HashMap<u64, Vec<u8>> = bincode::deserialize_from(source)
+        let mut data_bytes = vec![0u8; header.data_size as usize];
+        source.read_exact(&mut data_bytes)?;
+        let data: HashMap<u64, Vec<u8>> = wincode::deserialize(&data_bytes)
             .map_err(|e| PersistencyError::serialization("cache load", e))?;
         Ok(data)
     }
@@ -151,15 +155,15 @@ impl<'a> PersistencyStore {
         mut source: impl Write + Seek + 'a,
     ) -> Result<(), PersistencyError<'a>> {
         let cache = self.cache.read().await;
-        let data = bincode::serialize(&cache.deref().0)
-            .map_err(|e| PersistencyError::SerializationError("data serialization".into(), e))?;
+        let data = wincode::serialize(&cache.deref().0)
+            .map_err(|e| PersistencyError::serialization("data serialization", e))?;
 
         let mut header = PersistencyHeader::new()?;
         header.data_size =
             u32::try_from(data.len()).expect("persistency size > 4.2GB not supported");
 
-        let header_bytes = bincode::serialize(&header)
-            .map_err(|e| PersistencyError::SerializationError("header serialization".into(), e))?;
+        let header_bytes = wincode::serialize(&header)
+            .map_err(|e| PersistencyError::serialization("header serialization", e))?;
 
         source.rewind()?;
         source.write_all(&header_bytes)?;
@@ -170,14 +174,14 @@ impl<'a> PersistencyStore {
 
     pub async fn get<T>(&self, key: &str) -> T
     where
-        for<'b> T: serde::Deserialize<'b>,
+        T: wincode::DeserializeOwned<Dst = T>,
     {
         self.try_get(key).await.unwrap()
     }
 
     pub async fn try_get<T>(&self, key: &'a str) -> Result<T, PersistencyError<'a>>
     where
-        for<'b> T: serde::Deserialize<'b>,
+        T: wincode::DeserializeOwned<Dst = T>,
     {
         self.cache
             .read()
@@ -186,23 +190,23 @@ impl<'a> PersistencyStore {
             .get(&default_hash(key))
             .ok_or(PersistencyError::UnknownKey(key.into()))
             .and_then(|bytes| {
-                bincode::deserialize(bytes).map_err(|e| PersistencyError::serialization(key, e))
+                wincode::deserialize(bytes).map_err(|e| PersistencyError::serialization(key, e))
             })
     }
 
     pub async fn set<T>(&self, key: &str, value: T)
     where
-        T: serde::Serialize,
+        T: wincode::Serialize<Src = T>,
     {
         self.try_set(key, value).await.unwrap()
     }
 
     pub async fn try_set<T>(&self, key: &'a str, value: T) -> Result<(), PersistencyError<'a>>
     where
-        T: serde::Serialize,
+        T: wincode::Serialize<Src = T>,
     {
         let encoded =
-            bincode::serialize(&value).map_err(|e| PersistencyError::serialization(key, e))?;
+            wincode::serialize(&value).map_err(|e| PersistencyError::serialization(key, e))?;
 
         let mut cache = self.cache.write().await;
 
@@ -250,7 +254,7 @@ mod tests {
     fn test_invalid_header_magic() {
         let mut header = PersistencyHeader::new().unwrap();
         header.magic = b"invalid".to_owned();
-        let vec = bincode::serialize(&header).unwrap();
+        let vec = wincode::serialize(&header).unwrap();
         let cursor = Cursor::new(vec);
         assert!(matches!(
             PersistencyStore::try_load_data(cursor),
@@ -262,7 +266,7 @@ mod tests {
     fn test_invalid_header_version() {
         let mut header = PersistencyHeader::new().unwrap();
         header.version = 3;
-        let vec = bincode::serialize(&header).unwrap();
+        let vec = wincode::serialize(&header).unwrap();
         let cursor = Cursor::new(vec);
         assert!(matches!(
             PersistencyStore::try_load_data(cursor),
@@ -273,7 +277,7 @@ mod tests {
     #[test]
     fn test_invalid_data() {
         let header = PersistencyHeader::new().unwrap();
-        let mut vec = bincode::serialize(&header).unwrap();
+        let mut vec = wincode::serialize(&header).unwrap();
         let data = [0xffu8, 2];
         vec.extend_from_slice(&data);
 
@@ -288,14 +292,14 @@ mod tests {
     async fn test_write_data() {
         let mut data = HashMap::<u64, Vec<u8>>::new();
         let mut header = PersistencyHeader::new().unwrap();
-        data.insert(default_hash("test"), bincode::serialize(&222u128).unwrap());
-        header.data_size = bincode::serialized_size(&data).unwrap() as u32;
-        let mut vec = bincode::serialize(&header).unwrap();
-        vec.append(&mut bincode::serialize(&data).unwrap());
+        data.insert(default_hash("test"), wincode::serialize(&222u128).unwrap());
+        header.data_size = wincode::serialized_size(&data).unwrap() as u32;
+        let mut vec = wincode::serialize(&header).unwrap();
+        vec.append(&mut wincode::serialize(&data).unwrap());
 
         let mut cursor = Cursor::new(vec);
         let store = PersistencyStore::new(
-            [("test", bincode::serialize(&123u128).unwrap())],
+            [("test", wincode::serialize(&123u128).unwrap())],
             &mut cursor,
         )
         .unwrap();
@@ -313,7 +317,7 @@ mod tests {
     async fn read_write_test() {
         let mut cursor = Cursor::new(Vec::with_capacity(128));
         let store = PersistencyStore::new(
-            [("test", bincode::serialize(&123u128).unwrap())],
+            [("test", wincode::serialize(&123u128).unwrap())],
             &mut cursor,
         )
         .unwrap();

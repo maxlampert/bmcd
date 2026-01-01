@@ -39,7 +39,18 @@ conditional_import! {
 }
 
 #[repr(C)]
-#[derive(Debug, Eq, Hash, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    wincode::SchemaWrite,
+    wincode::SchemaRead,
+)]
 pub enum NodeId {
     Node1,
     Node2,
@@ -93,7 +104,17 @@ pub enum NodeType {
     RK1,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    Eq,
+    PartialEq,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    wincode::SchemaWrite,
+    wincode::SchemaRead,
+)]
 pub enum UsbRoute {
     Bmc,
     AlternativePort,

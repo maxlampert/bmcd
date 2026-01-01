@@ -15,7 +15,6 @@ anyhow = "1.0.100"
 async-compression = { version = "0.4.36", features = ["tokio", "gzip", "xz"] }
 async-trait = "0.1.89"
 base64 = "0.22.1"
-bincode = "1.3.3"
 board-info = { path = "../board_info/" }
 build-time = "0.1.3"
 bytes = "1.11.0"
@@ -61,6 +60,7 @@ tokio-util = { version = "0.7.17", features = ["io-util"] }
 tracing = "0.1.44"
 tracing-appender = "0.2.4"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+wincode = { version = "0.2.5", features = ["derive"] }
 
 [dev-dependencies]
 tempdir = "0.3.7"

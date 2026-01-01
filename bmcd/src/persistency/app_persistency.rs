@@ -45,11 +45,11 @@ impl PersistencyBuilder {
     /// registered with this function will result in an error.
     pub fn register_key<T>(mut self, key: &'static str, default: &T) -> Self
     where
-        T: std::fmt::Debug + serde::Serialize,
+        T: std::fmt::Debug + wincode::Serialize<Src = T>,
     {
         self.keys.push((
             key,
-            bincode::serialize(default)
+            wincode::serialize(default)
                 .with_context(|| format!("fatal serialization error of {:?}", default))
                 .expect("object to be serializable"),
         ));
@@ -271,7 +271,7 @@ mod tests {
     async fn file_write_on_drop() {
         let tmp_dir = TempDir::new("persistency_test1").unwrap();
         let bin_file = tmp_dir.path().join("bmcd.bin");
-        let keys_with_default = [("test", bincode::serialize(&123u128).unwrap())];
+        let keys_with_default = [("test", wincode::serialize(&123u128).unwrap())];
 
         tokio::task::spawn_blocking(|| {
             tokio::spawn(async {
@@ -298,7 +298,7 @@ mod tests {
             tokio::spawn(async {
                 let tmp_dir = TempDir::new("persistency_test2").unwrap();
                 let bin_file = tmp_dir.path().join("bmcd.bin");
-                let keys_with_default = [("test", bincode::serialize(&123u128).unwrap())];
+                let keys_with_default = [("test", wincode::serialize(&123u128).unwrap())];
                 let persistency = ApplicationPersistency::new(
                     keys_with_default.clone(),
                     &bin_file,
@@ -317,7 +317,7 @@ mod tests {
                     persistency.set("test", &n).await;
                 }
 
-                let keys_with_default = [("test", bincode::serialize(&1u128).unwrap())];
+                let keys_with_default = [("test", wincode::serialize(&1u128).unwrap())];
 
                 let persistency2 =
                     ApplicationPersistency::new(keys_with_default.clone(), &bin_file, None)
@@ -337,7 +337,7 @@ mod tests {
             tokio::spawn(async {
                 let tmp_dir = TempDir::new("persistency_test3").unwrap();
                 let bin_file = tmp_dir.path().join("bmcd.bin");
-                let keys_with_default = [("test", bincode::serialize(&123u128).unwrap())];
+                let keys_with_default = [("test", wincode::serialize(&123u128).unwrap())];
                 assert!(!bin_file.exists());
                 let _ = ApplicationPersistency::new(
                     keys_with_default.clone(),

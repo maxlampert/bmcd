@@ -53,7 +53,17 @@ pub const COOLING_DEVICES: &str = "cooling_devices";
 const COOLING_CAPACITY: usize = 10;
 
 /// Describes the different configuration the USB bus can be setup
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    wincode::SchemaWrite,
+    wincode::SchemaRead,
+)]
 pub enum UsbConfig {
     /// USB-A port is host, NodeId is the device.
     UsbA(NodeId),
@@ -65,7 +75,15 @@ pub enum UsbConfig {
     Flashing(NodeId, UsbRoute),
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    wincode::SchemaWrite,
+    wincode::SchemaRead,
+)]
 pub struct NodeInfo {
     pub name: Option<String>,
     pub module_name: Option<String>,
