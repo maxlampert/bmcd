@@ -1,56 +1,53 @@
 [package]
 name = "bmcd"
-version = "2.3.7"
+version = "2.3.8"
 edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.75.0"
 
 [dependencies]
 actix = "0.13.5"
-actix-files = "0.6.6"
+actix-files = "0.6.9"
 actix-multipart = "0.7.2"
-actix-web = { version = "4.9.0", features = ["openssl"] }
+actix-web = { version = "4.12.1", features = ["openssl"] }
 actix-ws = "0.3.0"
-anyhow = "1.0.95"
-async-compression = { version = "0.4.18", features = ["tokio", "gzip", "xz"] }
-async-trait = "0.1.86"
+anyhow = "1.0.100"
+async-compression = { version = "0.4.36", features = ["tokio", "gzip", "xz"] }
+async-trait = "0.1.89"
 base64 = "0.22.1"
 bincode = "1.3.3"
 board-info = { path = "../board_info/" }
 build-time = "0.1.3"
-byteorder = "1.5.0"
-bytes = "1.10.0"
-chrono = "0.4.39"
-circular-buffer = "0.1.9"
-clap = { version = "4.5.29", features = ["cargo"] }
+bytes = "1.11.0"
+chrono = "0.4.42"
+circular-buffer = "1.2.0"
+clap = { version = "4.5.53", features = ["cargo"] }
 config = "0.15.8"
-crc = "3.2.1"
-crc32fast = "1.4.2"
-evdev = { version = "0.13.0", features = ["tokio"] }
+crc = "3.4.0"
+evdev = { version = "0.13.2", features = ["tokio"] }
 futures = "0.3.31"
 gpiocdev = "0.8.0"
 hex = "0.4.3"
 humansize = "2.1.3"
-humantime = "2.1.0"
-if-addrs = "0.13.3"
+humantime = "2.3.0"
+if-addrs = "0.14.0"
 inotify = "0.11.0"
-nix = { version = "0.29.0", features = ["fs", "feature"] }
-openssl = "0.10.70"
-pin-project = "1.1.9"
+nix = { version = "0.30.1", features = ["fs", "feature"] }
+openssl = "0.10.75"
 pwhash = "1.0.0"
-rand = "0.9.0"
-reqwest = { version = "0.12.12", features = ["stream"] }
+rand = "0.9.2"
+reqwest = { version = "0.13.1", features = ["stream"] }
 rockfile = { version = "0.1.2" }
-rockusb = { version = "0.2.0", features = ["libusb"] }
+rockusb = { version = "0.3.0", features = ["libusb"] }
 rusb = "0.9.4"
 rustpiboot = "0.3.0"
-serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.138"
-serde_with = "3.12.0"
-sha2 = "0.10.8"
-tar = "0.4.43"
-thiserror = "2.0.11"
-tokio = { version = "1.43.0", features = [
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.148"
+serde_with = "3.16.1"
+sha2 = "0.10.9"
+tar = "0.4.44"
+thiserror = "2.0.17"
+tokio = { version = "1.48.0", features = [
     "rt-multi-thread",
     "rt",
     "time",
@@ -60,10 +57,10 @@ tokio = { version = "1.43.0", features = [
 ] }
 tokio-serial = { version = "5.4.5", features = ["rt", "codec"] }
 tokio-stream = { version = "0.1.17", features = ["sync"] }
-tokio-util = { version = "0.7.13", features = ["io-util"] }
-tracing = "0.1.41"
-tracing-appender = "0.2.3"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tokio-util = { version = "0.7.17", features = ["io-util"] }
+tracing = "0.1.44"
+tracing-appender = "0.2.4"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
 [dev-dependencies]
 tempdir = "0.3.7"

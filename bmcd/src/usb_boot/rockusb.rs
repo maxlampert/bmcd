@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use rockfile::boot::{
     RkBootEntry, RkBootEntryBytes, RkBootHeader, RkBootHeaderBytes, RkBootHeaderEntry,
 };
-use rockusb::libusb::Transport;
+use rockusb::libusb::Device;
 use rusb::{DeviceDescriptor, GlobalContext};
 use std::{fmt::Display, mem::size_of, ops::Range, time::Duration};
 use tracing::info;
@@ -40,9 +40,9 @@ impl UsbBoot for RockusbBoot {
     ) -> Result<std::path::PathBuf, UsbBootError> {
         if BootMode::Maskrom == device.device_descriptor()?.into() {
             info!("Maskrom mode detected. loading usb-plug..");
-            let mut transport =
-                Transport::from_usb_device(device.open()?).map_err(UsbBootError::internal_error)?;
-            download_boot(&mut transport).await?;
+            let mut device =
+                Device::from_usb_device(device.open()?).map_err(UsbBootError::internal_error)?;
+            download_boot(&mut device).await?;
         }
 
         get_device_path(&["Rockchip"])
@@ -57,9 +57,9 @@ impl Display for RockusbBoot {
     }
 }
 
-async fn download_boot(transport: &mut Transport) -> Result<(), UsbBootError> {
+async fn download_boot(device: &mut Device) -> Result<(), UsbBootError> {
     let boot_entries = parse_boot_entries(SPL_LOADER_RK3588)?;
-    load_boot_entries(transport, boot_entries).await?;
+    load_boot_entries(device, boot_entries).await?;
     // Rockchip will reconnect to USB, back off a bit
     tokio::time::sleep(Duration::from_secs(5)).await;
     Ok(())
@@ -124,12 +124,12 @@ fn parse_boot_entry(blob: &[u8], range: &Range<u32>) -> RkBootEntry {
 }
 
 async fn load_boot_entries(
-    transport: &mut Transport,
+    device: &mut Device,
     iterator: impl Iterator<Item = (u16, u32, &'static [u8])>,
 ) -> Result<(), UsbBootError> {
     let mut size = 0;
     for (area, delay, data) in iterator {
-        transport
+        device
             .write_maskrom_area(area, data)
             .map_err(UsbBootError::internal_error)?;
         tokio::time::sleep(Duration::from_millis(delay.into())).await;
