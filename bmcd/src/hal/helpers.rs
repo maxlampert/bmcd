@@ -98,14 +98,16 @@ pub fn bit_iterator(nodes_state: u8, nodes_mask: u8) -> impl Iterator<Item = (us
 
 pub fn load_lines<P: AsRef<Path>>(chip: P) -> HashMap<String, u32> {
     let chip_ref = gpiocdev::chip::Chip::from_path(chip.as_ref()).expect("failed to open chip");
-    HashMap::from_iter((0..chip_ref.info().expect("chip info").num_lines).filter_map(|i| {
-        chip_ref.line_info(i).ok().and_then(|info| {
-            let name = info.name.to_string();
-            if name.is_empty() {
-                None
-            } else {
-                Some((name, i))
-            }
-        })
-    }))
+    HashMap::from_iter(
+        (0..chip_ref.info().expect("chip info").num_lines).filter_map(|i| {
+            chip_ref.line_info(i).ok().and_then(|info| {
+                let name = info.name.to_string();
+                if name.is_empty() {
+                    None
+                } else {
+                    Some((name, i))
+                }
+            })
+        }),
+    )
 }
