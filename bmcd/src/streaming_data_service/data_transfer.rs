@@ -181,7 +181,7 @@ impl DataTransfer {
                     .take()
                     .expect("request taken")
                     .bytes_stream()
-                    .map(|res| res.map_err(|e| std::io::Error::other(e)));
+                    .map(|res| res.map_err(std::io::Error::other));
 
                 Ok(build_reader_object(file_name, sha256.clone(), bytes_stream))
             }

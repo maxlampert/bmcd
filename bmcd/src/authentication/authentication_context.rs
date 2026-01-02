@@ -216,6 +216,7 @@ pub mod tests {
     use super::*;
     use std::ops::Sub;
 
+    #[allow(dead_code)]
     pub struct DummyValidator {}
     impl PasswordValidator for DummyValidator {
         fn validate(
@@ -226,6 +227,7 @@ pub mod tests {
         }
     }
 
+    #[allow(dead_code)]
     pub struct FalseValidator {}
     impl PasswordValidator for FalseValidator {
         fn validate(
