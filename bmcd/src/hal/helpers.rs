@@ -81,13 +81,13 @@ macro_rules! gpio_output_array {
 /// # Arguments
 ///
 /// * `node_states`     bit-field where each bit represents a node on the
-///     turing-pi board, if bit(n) = 1 equals 'select' and bit(n) = 0 equals
-///     'unselect'.
+///    turing-pi board, if bit(n) = 1 equals 'select' and bit(n) = 0 equals
+///    'unselect'.
 /// * `node_mask`       mask which bits to select.
 ///
 /// # Returns
 ///
-/// iterator returns a tuple containing the index of a bit + the new value.  
+/// iterator returns a tuple containing the index of a bit + the new value.
 pub fn bit_iterator(nodes_state: u8, nodes_mask: u8) -> impl Iterator<Item = (usize, u8)> {
     (0..NODE_COUNT).filter_map(move |n| {
         let mask = nodes_mask & (1 << n);

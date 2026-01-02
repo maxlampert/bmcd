@@ -147,8 +147,8 @@ impl UpgradeWorker {
         if expected_crc != dev_checksum {
             bail!(
                 "crc error. expected {}, calculated {}",
-                expected_crc.to_string(),
-                dev_checksum.to_string()
+                expected_crc,
+                dev_checksum
             );
         }
 

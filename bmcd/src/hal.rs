@@ -98,6 +98,7 @@ impl Display for NodeId {
 
 #[repr(C)]
 #[derive(Debug, Eq, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[allow(dead_code)]
 pub enum NodeType {
     RaspberryPi4,
     JetsonTx2,
